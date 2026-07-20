@@ -1,0 +1,286 @@
+{
+  "name": "YEX SEO Bot - RSS Monitor",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Every 15 min",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://cointelegraph.com/rss",
+        "options": {}
+      },
+      "id": "rss-cointelegraph",
+      "name": "Fetch CoinTelegraph RSS",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.1,
+      "position": [460, 200]
+    },
+    {
+      "parameters": {
+        "url": "https://www.theblock.co/rss.xml",
+        "options": {}
+      },
+      "id": "rss-theblock",
+      "name": "Fetch The Block RSS",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.1,
+      "position": [460, 340]
+    },
+    {
+      "parameters": {
+        "url": "https://beincrypto.com/feed/",
+        "options": {}
+      },
+      "id": "rss-beincrypto",
+      "name": "Fetch BeInCrypto RSS",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.1,
+      "position": [460, 480]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combinationMode": "multiplex"
+      },
+      "id": "merge-feeds",
+      "name": "Merge All Feeds",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [680, 340]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Limit to 10 most recent items per feed run, add source label\nreturn items.slice(0, 15).map(item => {\n  return {\n    json: {\n      source: item.json.source || 'RSS',\n      title: item.json.title,\n      link: item.json.link,\n      summary: (item.json.contentSnippet || item.json.content || '').slice(0, 500),\n      published: item.json.isoDate || item.json.pubDate\n    }\n  };\n});"
+      },
+      "id": "normalize-items",
+      "name": "Normalize Items",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 340]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://intelligence:8000/dedup/check",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "source",
+              "value": "rss"
+            },
+            {
+              "name": "identifier",
+              "value": "={{ $json.link }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "dedup-check",
+      "name": "Check Dedup",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 340]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.seen }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "if-not-seen",
+      "name": "IF New Item",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [1340, 340]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://intelligence:8000/dedup/mark",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "source", "value": "rss" },
+            { "name": "identifier", "value": "={{ $('Normalize Items').item.json.link }}" },
+            { "name": "title", "value": "={{ $('Normalize Items').item.json.title }}" },
+            { "name": "url", "value": "={{ $('Normalize Items').item.json.link }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "dedup-mark",
+      "name": "Mark Seen",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1560, 260]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://intelligence:8000/interpret",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ signal_type: \"crypto_news\", raw_data: { source: $('Normalize Items').item.json.source, title: $('Normalize Items').item.json.title, url: $('Normalize Items').item.json.link, summary: $('Normalize Items').item.json.summary } }) }}",
+        "options": {}
+      },
+      "id": "interpret",
+      "name": "Interpret via Claude",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1780, 260]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.skip }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "if-not-skip",
+      "name": "IF Worth Alerting",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [2000, 260]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $env.TELEGRAM_CHAT_ID }}",
+        "text": "={{ ($json.priority === 'URGENT' ? '🔴' : $json.priority === 'OPPORTUNITY' ? '🟡' : $json.priority === 'INSIGHT' ? '🟢' : '🔵') }} *{{ $json.priority }}* | News:{{ $('Normalize Items').item.json.source }}\n\n*{{ $json.title }}*\n{{ $json.summary }}\n\n📝 *Angle:* {{ $json.angle }}\n\n{{ $('Normalize Items').item.json.link }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "send-telegram",
+      "name": "Send Telegram Alert",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [2220, 260],
+      "credentials": {
+        "telegramApi": {
+          "id": "PLACEHOLDER",
+          "name": "YEX SEO Bot Telegram"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://intelligence:8000/alerts/log",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "module", "value": "={{ 'News:' + $('Normalize Items').item.json.source }}" },
+            { "name": "priority", "value": "={{ $json.priority }}" },
+            { "name": "title", "value": "={{ $json.title }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "log-alert",
+      "name": "Log Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2440, 260]
+    }
+  ],
+  "connections": {
+    "Every 15 min": {
+      "main": [
+        [
+          { "node": "Fetch CoinTelegraph RSS", "type": "main", "index": 0 },
+          { "node": "Fetch The Block RSS", "type": "main", "index": 0 },
+          { "node": "Fetch BeInCrypto RSS", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Fetch CoinTelegraph RSS": {
+      "main": [[{ "node": "Merge All Feeds", "type": "main", "index": 0 }]]
+    },
+    "Fetch The Block RSS": {
+      "main": [[{ "node": "Merge All Feeds", "type": "main", "index": 1 }]]
+    },
+    "Fetch BeInCrypto RSS": {
+      "main": [[{ "node": "Merge All Feeds", "type": "main", "index": 2 }]]
+    },
+    "Merge All Feeds": {
+      "main": [[{ "node": "Normalize Items", "type": "main", "index": 0 }]]
+    },
+    "Normalize Items": {
+      "main": [[{ "node": "Check Dedup", "type": "main", "index": 0 }]]
+    },
+    "Check Dedup": {
+      "main": [[{ "node": "IF New Item", "type": "main", "index": 0 }]]
+    },
+    "IF New Item": {
+      "main": [
+        [{ "node": "Mark Seen", "type": "main", "index": 0 }],
+        []
+      ]
+    },
+    "Mark Seen": {
+      "main": [[{ "node": "Interpret via Claude", "type": "main", "index": 0 }]]
+    },
+    "Interpret via Claude": {
+      "main": [[{ "node": "IF Worth Alerting", "type": "main", "index": 0 }]]
+    },
+    "IF Worth Alerting": {
+      "main": [
+        [{ "node": "Send Telegram Alert", "type": "main", "index": 0 }],
+        []
+      ]
+    },
+    "Send Telegram Alert": {
+      "main": [[{ "node": "Log Alert", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
