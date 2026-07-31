@@ -18,6 +18,7 @@ env/
 *.db
 data/
 *.log
+config/gsc_credentials.json
 
 # Docker
 *.pid
