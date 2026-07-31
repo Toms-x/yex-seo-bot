@@ -97,21 +97,20 @@ PRIORITY = {
     "INSIGHT":  "🟢",
 }
 
-YEX_EDITORIAL_CONTEXT = """
-You are advising the SEO content team at YEX Exchange, a regulated crypto trading
-platform in Dubai. The audience is active crypto traders.
+EDITORIAL_CONTEXT = os.getenv("EDITORIAL_CONTEXT", """
+You are advising the SEO content team at a regulated crypto trading platform.
+The audience is active crypto traders.
 
 Editorial standards:
-- Never name competitor exchanges (Binance, Bybit, OKX, etc.) in YEX content
-- Short, punchy sentences for trader audience
-- Avoid em dashes
-- First-person plural (we, our) when speaking as YEX
+- Follow the platform's competitor-mention policy (configurable per client)
+- Short, punchy sentences for a trader audience
+- Consistent brand voice as defined by the client
 - Focus on actionable angles: what should the trader DO with this info?
 
 When suggesting content angles, prioritize:
-1. Topics where YEX features are relevant (futures, margin, copy trading, AI bots,
-   tokenized stocks, staking)
+1. Topics where the platform's core features are relevant (e.g. futures,
+   margin, copy trading, staking, tokenized assets)
 2. Search opportunities (rising queries, low-competition keywords)
-3. Educational gaps in the cluster
-4. Reactive recap angles for the weekly market roundup
-"""
+3. Educational gaps in the content cluster
+4. Reactive recap angles for a weekly market roundup
+""")
