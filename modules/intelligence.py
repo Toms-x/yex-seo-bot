@@ -12,7 +12,7 @@ import logging
 import json
 from openai import OpenAI
 from config.settings import (
-    OPENAI_API_KEY, OPENAI_MODEL, YEX_EDITORIAL_CONTEXT
+    OPENAI_API_KEY, OPENAI_MODEL, EDITORIAL_CONTEXT
 )
 
 log = logging.getLogger(__name__)
@@ -39,7 +39,7 @@ def interpret_signal(signal_type: str, raw_data: dict) -> dict:
             "skip": false  # If signal is noise, skip alerting
         }
     """
-    prompt = f"""{YEX_EDITORIAL_CONTEXT}
+    prompt = f"""{EDITORIAL_CONTEXT}
 
 A signal just came in from the monitoring system.
 
@@ -97,7 +97,7 @@ def synthesize_digest(alerts: list, performance: dict = None) -> str:
     Daily digest - Claude reads all alerts from past 24h plus GSC performance
     and produces a coherent morning briefing.
     """
-    prompt = f"""{YEX_EDITORIAL_CONTEXT}
+    prompt = f"""{EDITORIAL_CONTEXT}
 
 Below are all signals captured in the past 24 hours, plus YEX content performance.
 
