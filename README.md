@@ -13,10 +13,10 @@ a systemd service. Simple, one language, no Docker needed.
 
 **Option B — n8n Hybrid** (recommended if you want visual debugging + easy tuning)
 n8n handles scheduling, data fetching, and Telegram delivery. A small Python
-FastAPI service handles the Claude interpretation logic and dedup state.
+FastAPI service handles the GPT-4o interpretation logic and dedup state.
 → See `N8N_SETUP.md`
 
-Both share the same `modules/intelligence.py` (the Claude prompt) and
+Both share the same `modules/intelligence.py` (the GPT-4o prompt) and
 `modules/state.py` (dedup logic) — pick whichever orchestration layer fits
 how you like to work. You can even run both side by side while you migrate
 module by module.
@@ -27,7 +27,7 @@ module by module.
 config/settings.py       # All thresholds, feeds, schedules - edit here to tune
 modules/
   state.py                # SQLite dedup + price history + alert log
-  intelligence.py          # Claude prompt - the actual "brain"
+  intelligence.py          # GPT-4o prompt - the actual "brain"
   telegram_client.py       # Telegram delivery (pure-Python path only)
   rss_monitor.py           # News signal source
   market_anomalies.py      # Price/volume/funding signal source
