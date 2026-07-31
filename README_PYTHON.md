@@ -72,5 +72,5 @@ Edit `config/settings.py`:
 ## Cost estimate
 
 - GCP e2-small: ~$13/mo (or free tier e2-micro: $0)
-- Anthropic API: ~$5-15/mo at expected volume
+- OpenAI API: ~$5-15/mo at expected volume
 - Total: under $30/mo
